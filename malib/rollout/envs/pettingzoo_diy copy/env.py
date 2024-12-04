@@ -1,17 +1,16 @@
+from pettingzoo.utils import AECEnv, agent_selector
 from gym import spaces
 import numpy as np
 from typing import Dict, Any, List, Tuple, Union
 from malib.rollout.envs.env import Environment
-from pettingzoo.utils import agent_selector
 
 class SimCityEnv(Environment):
     metadata = {"render.modes": ["human"]}
 
     def __init__(self, **configs):
-        super(SimCityEnv, self).__init__(**configs)
+        Environment.__init__(self, **configs)
         
-        # Extract scenario configurations
-        scenario_configs = configs.get("scenario_configs", {}).copy()
+        scenario_configs = configs.get("scenario_configs", {})
         self.grid_size = scenario_configs.get("grid_size", 4)
         self.num_players = scenario_configs.get("num_players", 3)
         
@@ -19,13 +18,13 @@ class SimCityEnv(Environment):
         self._agents = [f"P{i+1}" for i in range(self.num_players)]
         self._possible_agents = self._agents[:]
         
-        # Get game configurations
+        # Get game configs
         self.building_types = scenario_configs["building_types"]
         self.building_costs = scenario_configs["building_costs"]
         self.building_utilities = scenario_configs["building_utilities"]
         self.building_effects = scenario_configs["building_effects"]
         
-        # Initialize action and observation spaces
+        # Initialize spaces
         self._init_spaces()
         
         # Initialize agent selector
@@ -36,31 +35,30 @@ class SimCityEnv(Environment):
         self.reset()
 
     @property
-    def agents(self) -> List[str]:
+    def agents(self):
         return self._agents
 
     @property
-    def possible_agents(self) -> List[str]:
+    def possible_agents(self):
         return self._possible_agents
 
     @property
-    def action_spaces(self) -> Dict[str, spaces.Space]:
+    def action_spaces(self):
         return self._action_spaces
 
     @property
-    def observation_spaces(self) -> Dict[str, spaces.Space]:
+    def observation_spaces(self):
         return self._observation_spaces
 
     def _init_spaces(self):
-        # Define action spaces for each agent
         self._action_spaces = {
             agent: spaces.Discrete(self.grid_size**2 * len(self.building_types))
             for agent in self._agents
         }
         
-        # Define observation spaces for each agent
+        # 只使用Box空间，不使用Dict空间
         total_obs_dim = (
-            self.grid_size * self.grid_size * 3 +  # grid (G, V, D)
+            self.grid_size * self.grid_size * 3 +  # grid (G,V,D)
             2 +  # resources (money, reputation)
             self.grid_size * self.grid_size  # builders
         )
@@ -74,26 +72,10 @@ class SimCityEnv(Environment):
             ) for agent in self._agents
         }
 
-    def reset(self, seed: int = None, options: Dict[str, Any] = None, max_step: int = None) -> Tuple[Union[None, Dict[str, Any]], Dict[str, Any]]:
-        """
-        Reset the environment.
-
-        Args:
-            seed (int, optional): Seed for random number generator.
-            options (dict, optional): Additional options.
-            max_step (int, optional): Maximum number of steps per episode.
-
-        Returns:
-            Tuple containing:
-                - None (state)
-                - Observations dictionary
-        """
-        super(SimCityEnv, self).reset(max_step)
-        
+    def reset(self, seed=None, options=None, max_step=None):
         if seed is not None:
             np.random.seed(seed)
-        
-        # Initialize grid and buildings
+            
         self.grid = np.full((self.grid_size, self.grid_size, 3), 30, dtype=np.int32)
         self.buildings = np.full((self.grid_size, self.grid_size), None)
         self.builders = np.full((self.grid_size, self.grid_size), -1, dtype=np.int32)
@@ -111,78 +93,39 @@ class SimCityEnv(Environment):
         self._agent_selector = agent_selector(self._agents)
         self.agent_selection = self._agent_selector.reset()
         
-        # Initialize rewards, terminations, truncations, and infos
         self.rewards = {agent: 0 for agent in self._agents}
         self.terminations = {agent: False for agent in self._agents}
         self.truncations = {agent: False for agent in self._agents}
         self.infos = {agent: {} for agent in self._agents}
         
-        # Initialize step counter
         self.num_moves = 0
         
-        # Get initial observations
         observations = {agent: self._get_obs(agent) for agent in self._agents}
-        return None, observations
+        return observations
 
-    def step(self, action: Dict[str, Any]) -> Tuple[
-        Union[None, Dict[str, Any]],
-        Dict[str, Any],
-        Dict[str, float],
-        Dict[str, bool],
-        Dict[str, Any],
-    ]:
-        """
-        Perform a step in the environment.
-
-        Args:
-            action (dict): Actions taken by agents.
-
-        Returns:
-            Tuple containing:
-                - None (state)
-                - Observations dictionary
-                - Rewards dictionary
-                - Dones dictionary (combination of terminations and truncations)
-                - Infos dictionary
-        """
+    def step(self, action):
         if self.terminations[self.agent_selection] or self.truncations[self.agent_selection]:
             return self._was_dead_step(action)
 
         agent = self.agent_selection
-
+        
         # Process action and update state
-        reward = self._process_action(agent, action[agent])
+        reward = self._process_action(agent, action)
         
         # Update rewards
         self.rewards[agent] = reward
         
-        # Check termination conditions
+        # Check termination
         if self._is_game_over():
             self.terminations = {agent: True for agent in self._agents}
         
         # Update agent selection
         self.agent_selection = self._agent_selector.next()
         
-        # Get new observations
         observations = {agent: self._get_obs(agent) for agent in self._agents}
-        
-        # Combine terminations and truncations into dones
-        dones = {agent: self.terminations[agent] or self.truncations[agent] for agent in self._agents}
-        dones["__all__"] = all(dones.values())
-        
-        return None, observations, self.rewards, dones, self.infos
+        return observations, self.rewards, self.terminations, self.truncations, self.infos
 
-    def _process_action(self, agent: str, action: int) -> float:
-        """
-        Process the action taken by an agent.
-
-        Args:
-            agent (str): The agent taking the action.
-            action (int): The action to process.
-
-        Returns:
-            float: The reward obtained from the action.
-        """
+    def _process_action(self, agent, action):
         building_type, x, y = self._decode_action(action)
         reward = 0
         
@@ -211,16 +154,7 @@ class SimCityEnv(Environment):
             
         return reward
 
-    def _decode_action(self, action: int) -> Tuple[str, int, int]:
-        """
-        Decode the action into building type and grid position.
-
-        Args:
-            action (int): The action to decode.
-
-        Returns:
-            Tuple containing building type, x-coordinate, and y-coordinate.
-        """
+    def _decode_action(self, action):
         total_positions = self.grid_size ** 2
         building_type_idx = action // total_positions
         position_idx = action % total_positions
@@ -231,15 +165,7 @@ class SimCityEnv(Environment):
         
         return building_type, x, y
 
-    def _apply_building_effects(self, x: int, y: int, building_type: str):
-        """
-        Apply the effects of placing a building.
-
-        Args:
-            x (int): X-coordinate of the building.
-            y (int): Y-coordinate of the building.
-            building_type (str): Type of the building.
-        """
+    def _apply_building_effects(self, x, y, building_type):
         effects = self.building_effects[building_type]
         
         # Apply direct effects
@@ -255,17 +181,8 @@ class SimCityEnv(Environment):
                     effects["neighbors"]["D"]
                 ]
 
-    def _get_obs(self, agent: str) -> np.ndarray:
-        """
-        Get the observation for a specific agent.
-
-        Args:
-            agent (str): The agent to get the observation for.
-
-        Returns:
-            np.ndarray: The flattened observation array.
-        """
-        # Flatten all observation data into a one-dimensional array
+    def _get_obs(self, agent):
+        # 将所有观察数据扁平化为一维数组
         grid_flat = self.grid.reshape(-1).astype(np.float32)
         resources = np.array([
             self.player_states[agent]["money"],
@@ -275,70 +192,17 @@ class SimCityEnv(Environment):
         
         return np.concatenate([grid_flat, resources, builders_flat])
 
-    def _is_game_over(self) -> bool:
-        """
-        Check if the game is over.
-
-        Returns:
-            bool: True if the game is over, False otherwise.
-        """
+    def _is_game_over(self):
         return (np.all(self.buildings != None) or 
                 np.mean(self.grid) < 10 or 
                 self.num_moves >= self.grid_size**2)
 
-    def render(self, mode: str = "human"):
-        """
-        Render the environment.
-
-        Args:
-            mode (str): The mode to render with.
-
-        Returns:
-            Any: Rendered output based on the mode.
-        """
+    def render(self):
         # Implementation for rendering (if needed)
         pass
 
-    def observe(self, agent: str) -> np.ndarray:
-        """
-        Observe the environment for a specific agent.
-
-        Args:
-            agent (str): The agent to observe for.
-
-        Returns:
-            np.ndarray: The observation array.
-        """
+    def observe(self, agent):
         return self._get_obs(agent)
 
     def close(self):
-        """
-        Close the environment.
-        """
         pass
-
-    def _was_dead_step(self, action: Dict[str, Any]) -> Tuple[
-        Union[None, Dict[str, Any]],
-        Dict[str, Any],
-        Dict[str, float],
-        Dict[str, bool],
-        Dict[str, Any],
-    ]:
-        """
-        Handle the step when an agent is dead.
-
-        Args:
-            action (dict): Actions taken by agents.
-
-        Returns:
-            Tuple containing:
-                - None (state)
-                - Observations dictionary
-                - Rewards dictionary
-                - Dones dictionary
-                - Infos dictionary
-        """
-        observations = {agent: self._get_obs(agent) for agent in self._agents}
-        dones = {agent: True for agent in self._agents}
-        dones["__all__"] = True
-        return None, observations, self.rewards, dones, self.infos
