@@ -26,7 +26,7 @@ SCENARIO_CONFIGS = {
     "simcity.base_v0": {
         "grid_size": 4,
         "num_players": 3,
-        "parallel_simulate": False,
+        "parallel_simulate": False, # False for AECEnv
         "building_types": ["Park", "House", "Shop"],
         "building_costs": {
             "Park": {"money": 1, "reputation": 3},

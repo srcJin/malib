@@ -14,7 +14,7 @@ class SimCityEnv(Environment):
         self.grid_size = scenario_configs.get("grid_size", 4)
         self.num_players = scenario_configs.get("num_players", 3)
         
-        # Initialize agents
+        # Initialize agent
         self._agents = [f"P{i+1}" for i in range(self.num_players)]
         self._possible_agents = self._agents[:]
         
@@ -56,7 +56,6 @@ class SimCityEnv(Environment):
             for agent in self._agents
         }
         
-        # 只使用Box空间，不使用Dict空间
         total_obs_dim = (
             self.grid_size * self.grid_size * 3 +  # grid (G,V,D)
             2 +  # resources (money, reputation)

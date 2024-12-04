@@ -32,7 +32,7 @@ if __name__ == "__main__":
         "max_step": 10,  # Adjust based on your environment's episode length
         "num_eval_episodes": 10,
         "num_threads": 2,
-        "num_env_per_thread": 10,
+        "num_env_per_thread": 1,
         "num_eval_threads": 1,
         "use_subproc_env": False,
         "batch_mode": "time_step",
@@ -61,16 +61,17 @@ if __name__ == "__main__":
         os.makedirs(runtime_logdir)
 
     scenario = MARLScenario(
-        name="custom_pettingzoo",
+        name="my_simcity_1",
         log_dir=runtime_logdir,
         algorithms=algorithms,
         env_description=env_description,
         training_config=training_config,
         rollout_config=rollout_config,
         agent_mapping_func=agent_mapping_func,
+        # num_worker=5,
         stopping_conditions={
             "training": {"max_iteration": int(10)},  # Adjust iterations as needed
-            "rollout": {"max_iteration": int(100), "minimum_reward_improvement": 1.0},
+            "rollout": {"max_iteration": int(8), "minimum_reward_improvement": 1.0},
         },
     )
 
