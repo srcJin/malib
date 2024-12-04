@@ -23,6 +23,7 @@
 from typing import Dict, Callable, Union
 
 
+# @note register custom environment
 class Registry:
     """Global registry of algorithms, models, preprocessors and environments
 

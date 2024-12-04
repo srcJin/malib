@@ -42,7 +42,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     trainer_config = DEFAULT_CONFIG["training_config"].copy()
-    trainer_config["total_timesteps"] = int(1e6)
+    trainer_config["total_timesteps"] = int(10)
     trainer_config["use_cuda"] = args.use_cuda
 
     training_config = {
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     }
     rollout_config = {
         "fragment_length": 2000,  # determine the size of sended data block
-        "max_step": 200,
+        "max_step": 10,
         "num_eval_episodes": 10,
         "num_threads": 2,
         "num_env_per_thread": 10,
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         "batch_mode": "time_step",
         "postprocessor_types": ["defaults"],
         # every # rollout epoch run evaluation.
-        "eval_interval": 1,
+        "eval_interval": 5,
         "inference_server": "ray",  # three kinds of inference server: `local`, `pipe` and `ray`
     }
     agent_mapping_func = lambda agent: agent
@@ -91,8 +91,8 @@ if __name__ == "__main__":
         rollout_config=rollout_config,
         agent_mapping_func=agent_mapping_func,
         stopping_conditions={
-            "training": {"max_iteration": int(1e10)},
-            "rollout": {"max_iteration": 1000, "minimum_reward_improvement": 1.0},
+            "training": {"max_iteration": int(5)},
+            "rollout": {"max_iteration": int(6), "minimum_reward_improvement": 1.0},
         },
     )
 

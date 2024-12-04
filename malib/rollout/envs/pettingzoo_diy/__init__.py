@@ -22,24 +22,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-SCENARIO_CONFIGS = {
-    "atari.basketball_pong_v3": {
-        "num_players": 2,
-        "parallel_simulate": True,
-    },
-    "atari.boxing_v2": {
-        "parallel_simulate": True,
-    },
-    "butterfly.cooperative_pong_v5": {"parallel_simulate": True},
-    "classic.chess_v6": {"parallel_simulate": False},
-    "mpe.simple_adversary_v3": {"parallel_simulate": True},
-    # "sisl.multiwalker_v9": {
-    #     "parallel_simulate": True
-    # },
-    # "sisl.pursuite_v4": {
-    #     "parallel_simulate": True
-    # },
-    # "sisl.waterworld_v4": {
-    #     "parallel_simulate": True
-    # }
-}
+from .env import SimCityEnv
+from .scenario_configs_ref import SCENARIO_CONFIGS
+
+def env_desc_gen(**config):
+    env_id = config["env_id"]
+    assert env_id in SCENARIO_CONFIGS, f"available env ids: {SCENARIO_CONFIGS.keys()}"
+
+    if "scenario_configs" not in config:
+        config["scenario_configs"] = SCENARIO_CONFIGS[env_id]
+    else:
+        scenario_config = SCENARIO_CONFIGS[env_id].copy()
+        scenario_config.update(config["scenario_configs"])
+        config["scenario_configs"] = scenario_config
+
+    env = SimCityEnv(**config)
+    env_desc = {
+        "creator": SimCityEnv,
+        "possible_agents": env.possible_agents,
+        "action_spaces": env.action_spaces,
+        "observation_spaces": env.observation_spaces,
+        "config": config,
+    }
+
+    env.close()
+
+    return env_desc

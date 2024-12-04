@@ -1,25 +1,3 @@
-# MIT License
-
-# Copyright (c) 2021 MARL @ SJTU
-
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
 # pragma: no cover
 from argparse import ArgumentParser
 
@@ -30,18 +8,22 @@ from malib.runner import run
 from malib.agent import IndependentAgent
 from malib.scenarios.psro_scenario import PSROScenario
 from malib.rl.dqn import DQNPolicy, DQNTrainer, DEFAULT_CONFIG
-from malib.rollout.envs.open_spiel import env_desc_gen
+# from malib.rollout.envs.open_spiel import env_desc_gen
+# from malib.rollout.envs.pettingzoo import env_desc_gen
+
+from malib.rollout.envs.pettingzoo_diy import env_desc_gen
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser("Naive Policy Space Response Oracles.")
+    parser = ArgumentParser("PSRO for SimCity")
     parser.add_argument("--log_dir", default="./logs/", help="Log directory.")
     parser.add_argument(
-        "--env_id", default="kuhn_poker", help="open_spiel environment id."
+        "--env_id", 
+        default="simcity.base_v0",
+        help="SimCity environment id"
     )
 
     args = parser.parse_args()
-
     trainer_config = DEFAULT_CONFIG["training_config"].copy()
     trainer_config["total_timesteps"] = int(10)
 
@@ -76,7 +58,14 @@ if __name__ == "__main__":
         )
     }
 
-    env_description = env_desc_gen(env_id=args.env_id)
+    env_description = env_desc_gen(
+        env_id=args.env_id,
+        scenario_configs={
+            "grid_size": 4,
+            "num_players": 3
+        }
+    )
+    
     runtime_logdir = os.path.join(args.log_dir, f"psro_{args.env_id}/{time.time()}")
 
     if not os.path.exists(runtime_logdir):

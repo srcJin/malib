@@ -1,0 +1,4 @@
+[2m[36m(IndependentAgent pid=244426)[0m 	Assigned GPUs: []
+[2m[36m(IndependentAgent pid=247249)[0m 	Assigned GPUs: []
+[2m[36m(IndependentAgent pid=249596)[0m 	Assigned GPUs: []
+[2m[36m(IndependentAgent pid=253036)[0m 	Assigned GPUs: []
